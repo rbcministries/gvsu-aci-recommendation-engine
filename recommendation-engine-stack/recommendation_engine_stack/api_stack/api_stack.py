@@ -1,14 +1,12 @@
 from constructs import Construct
 from aws_cdk import (
-    aws_iam as iam,
     aws_apigateway as apigw,
     aws_lambda as _lambda,
-    aws_lambda_event_sources as lambda_event_source,
-    Aws, Stack
+    NestedStack
 )
 
 # https://github.com/aws-samples/aws-cdk-examples/blob/master/python/api-cors-lambda/app.py
-class ApiStack(Stack):
+class ApiStack(NestedStack):
 
     def __init__(self, scope: Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
@@ -45,15 +43,3 @@ class ApiStack(Stack):
                 }
             }]
         )
-
-        '''
-        Stuff for integration with SageMaker/Recommendation engine later
-
-        #Create the API GW service role with permissions to call SageMaker if needed.
-        rest_api_role = iam.Role(
-            self,
-            "RestAPIRole",
-            assumed_by=iam.ServicePrincipal("apigateway.amazonaws.com"),
-            managed_policies=[iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSageMakerFullAccess")] # Need to figure out the right permissions
-        )
-        '''
