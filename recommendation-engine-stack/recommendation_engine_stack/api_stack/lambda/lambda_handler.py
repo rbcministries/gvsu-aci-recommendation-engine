@@ -14,6 +14,7 @@ def handler(event, context):
                                        ContentType=CONTENT_TYPE,
                                        Body=payload)
                                        
+    # Need return format from Tom, which is probably dependant on Joe for now.
     result = json.loads(response['Body'].read().decode())
     
     return result

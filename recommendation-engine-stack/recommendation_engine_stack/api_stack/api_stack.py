@@ -24,31 +24,21 @@ class ApiStack(NestedStack):
 
         recommendation_fn.add_to_role_policy(iam.PolicyStatement(actions=['sagemaker:InvokeEndpoint',],
             resources = [endpoint.get_att('Arn'),]))
-        
-        example_entity_lambda_integration = apigw.LambdaIntegration(
-            recommendation_fn,
-            proxy=False,
-            integration_responses=[{
-                'statusCode': '200',
-                'responseParameters': {
-                    'method.response.header.Access-Control-Allow-Origin': "'*'",
-                }
-            }]
-        )
 
         # Create an API GW Rest API
-        base_api = apigw.RestApi(self, 'ApiGW', rest_api_name='RecommendationAPI')
-        base_api = apigw.LambdaRestApi(self)
+        # base_api = apigw.RestApi(self, 'ApiGW', rest_api_name='RecommendationAPI')
+        self.recommendation_api = apigw.LambdaRestApi(self, "RecommendationApi", handler=recommendation_fn, proxy=True)
 
-        # Create a resource named "example" on the base API
-        api_resource = base_api.root.add_resource('recommendation')
+        # Not needed with proxy. This will probably need to be changed but needs specifications.
+        # I think mostly for 
+        # api_resource = lambda_api.root.add_resource('recommendation')
 
-        api_resource.add_method(
-            'GET', example_entity_lambda_integration,
-            method_responses=[{
-                'statusCode': '200',
-                'responseParameters': {
-                    'method.response.header.Access-Control-Allow-Origin': True,
-                }
-            }]
-        )
+        # api_resource.add_method(
+        #     'GET', example_entity_lambda_integration,
+        #     method_responses=[{
+        #         'statusCode': '200',
+        #         'responseParameters': {
+        #             'method.response.header.Access-Control-Allow-Origin': True,
+        #         }
+        #     }]
+        # )
