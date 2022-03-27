@@ -112,6 +112,6 @@ for url in sites:
     crawl(url, driver, 3000)
 
 print("[+] Total Internal links:", len(internal_urls))
-print("[+] Total External links:", len(external_urls))
-print("[+] Total URLs:", len(external_urls) + len(internal_urls))
+# print("[+] Total External links:", len(external_urls))
+# print("[+] Total URLs:", len(external_urls) + len(internal_urls))
 print("[+] Total crawled URLs:", total_urls_visited)
