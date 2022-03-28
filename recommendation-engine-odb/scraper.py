@@ -4,8 +4,9 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
 import csv
+import re
 
-output_file = r'C:\Users\Michael Dykema\Desktop\odb_org_pages.csv'
+output_file = r'C:\Users\Michael Dykema\Desktop\odb_pages_text_new.csv'
 sites = ["https://odb.org/"]
 book_count_threshold = 1
 books = ['Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth,' 
@@ -62,16 +63,21 @@ def get_all_website_links(url, webdriver: webdriver):
     except:
         return urls
 
+    text = webdriver.find_element_by_tag_name('body').text
     booksCounts = {}
     for book in books:
-        count = html.count(book)
+        count = text.count(book)
         if count >= book_count_threshold:
             booksCounts[book] = count
     
     if len(booksCounts) > 0:
+        text = webdriver.find_element_by_tag_name('body').text
+        text = text.replace('\n', ' ')
+        text = re.sub(r'[^a-zA-Z0-9:–\' ]', '', text).lower()
+
         with open(output_file, 'a+', newline='') as csvfile:
             spamwriter = csv.writer(csvfile)
-            spamwriter.writerow([url, booksCounts])
+            spamwriter.writerow([url, booksCounts, text])
             # spamwriter.writerow(['Spam', 'Lovely Spam', 'Wonderful Spam'])
 
     soup = BeautifulSoup(html, "html.parser")
@@ -85,10 +91,12 @@ def get_all_website_links(url, webdriver: webdriver):
         parsed_href = urlparse(href)
         # remove URL GET parameters, URL fragments, etc.
         href = parsed_href.scheme + "://" + parsed_href.netloc + parsed_href.path
+        if not href.endswith('/'):
+            href = href + '/'
         if not is_valid(href):
             # not a valid URL
             continue
-        if href in processed_urls:
+        if href in internal_urls:
             # already in the set
             continue
         if f'://{domain_name}/' not in href:
@@ -96,6 +104,8 @@ def get_all_website_links(url, webdriver: webdriver):
             continue
         if 'login' in href:
             # don't care about login stuff
+            continue
+        if href.split('\\')[-1] == url.split("\\")[-1]:
             continue
         print(f"[*] Internal link: {href}")
 
