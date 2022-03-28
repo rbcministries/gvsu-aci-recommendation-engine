@@ -3,14 +3,12 @@ import argparse
 import os
 import numpy as np
 import json
-
+import pandas as pd
 
 def _load_training_data(base_dir):
     df_train = np.load(os.path.join(base_dir, 'train.npy'), allow_pickle=True)
-    cols = df_train.select_dtypes(include=['string'])
-    for col in cols.columns.values:
-        df_train[col] = df_train[col].fillna('')
-    user_train, item_train, y_train = np.split(np.transpose(df_train).flatten(), 3)
+    df_train = np.asarray(df_train).astype('int')
+    user_train, item_train, y_train = np.split(np.transpose(df_train.flatten()), 3)
     return user_train, item_train, y_train
 
 # Samples train data
