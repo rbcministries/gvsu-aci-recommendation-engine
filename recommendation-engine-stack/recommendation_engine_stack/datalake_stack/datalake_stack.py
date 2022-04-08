@@ -5,6 +5,8 @@ from aws_cdk import (
     aws_lakeformation as lakeformation,
     aws_s3 as s3,
     aws_iam as iam,
+    aws_appflow as appflow,
+    aws_lambda as _lambda
 )
 
 class DatalakeStack(NestedStack):
@@ -12,122 +14,62 @@ class DatalakeStack(NestedStack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        # Data lake s3 bucket
         data_lake_bucket = s3.Bucket(self, "dataLakeBucket", bucket_name="recommendation_engine_data_lake")
 
-        bucket_role = iam.Role(
-            self, 
-            "dataLakeBucketRole", 
-            assumed_by=iam.ServicePrincipal("lakeformation.amazonaws.com"),
-            description="Role used by lakeformation to access resources.",
-            role_name="LakeFormationServiceAccessRole"            
+        # s3 bucket for lambda function to transform GA json to parquet
+        lambda_transform_bucket = s3.Bucket(self, "transformBucket", bucket_name="lambda_transform_bucket")
+
+        layer = lambda_.LayerVersion(stack, "pandas-parquet",
+            code=lambda_.Code.from_asset(path.join(__dirname, "layer-code")),
+            compatible_runtimes=[lambda_.Runtime.PYTHON_3_6],
+            description="Lambda layer to include pandas and pyarrow"
         )
 
+        # Lambda function to transform GA json to parquet
+        lambda_transform_function = _lambda.Function(self, "ga-parquet-converter",
+            code=_lambda.Code.from_asset(__dirname, 'lambda'),
+            handler='lambda_handler.handler',
+            runtime=lambda_.Runtime.PYTHON_3_6,
+            layers=[layer]
+        )
+
+        # Add event listener for s3 bucket
+        lambda_transform_function.add_event_source(eventsources.S3EventSource(lambda_transform_bucket,
+            events=[s3.EventType.OBJECT_CREATED, s3.EventType.OBJECT_REMOVED],
+            filters=[s3.NotificationKeyFilter(prefix="subdir/")]
+        ))
+
+        # Add permissions to Lambda function
+        lambda_transform_function.attach_inline_policy(iam.Policy(self, "ga-transform-policy",
+            statements=[iam.PolicyStatement(
+                actions=["s3:GetObject", "s3:PutObject"],
+                resources=[lambda_transform_bucket.bucket_arn]
+            )]
+        ))
+
+        # Declare appflow
+        cfn_flow = appflow.CfnFlow(self, "ga-flow",
+        source_flow_config_property = appflow.CfnFlow.SourceFlowConfigProperty(
+            connector_type="Googleanalytics")
+        )
+
+        # Lake formation role
+        bucket_role = iam.Role(
+            self,
+            "dataLakeBucketRole",
+            assumed_by=iam.ServicePrincipal("lakeformation.amazonaws.com"),
+            description="Role used by lakeformation to access resources.",
+            role_name="LakeFormationServiceAccessRole"
+        )
+
+        # Grant read write permissions to data lake
         data_lake_bucket.grant_read_write(bucket_role)
 
+        # Connect data lake to s3 bucket
         cfn_resource = lakeformation.CfnResource(
-            self, 
+            self,
             "RecommendationDataLake",
             resource_arn=data_lake_bucket.bucket_arn,
             use_service_linked_role=True,
         )
-
-        cfn_delivery_stream = kinesisfirehose.CfnDeliveryStream(self, "MyCfnDeliveryStream",
-        amazonopensearchservice_destination_configuration=kinesisfirehose.CfnDeliveryStream.AmazonopensearchserviceDestinationConfigurationProperty(
-        index_name="indexName",
-        role_arn="roleArn",
-        s3_configuration=kinesisfirehose.CfnDeliveryStream.S3DestinationConfigurationProperty(
-            bucket_arn="bucketArn",
-            role_arn="roleArn",
-
-            # the properties below are optional
-            buffering_hints=kinesisfirehose.CfnDeliveryStream.BufferingHintsProperty(
-                interval_in_seconds=123,
-                size_in_mBs=123
-            ),
-            cloud_watch_logging_options=kinesisfirehose.CfnDeliveryStream.CloudWatchLoggingOptionsProperty(
-                enabled=False,
-                log_group_name="logGroupName",
-                log_stream_name="logStreamName"
-            ),
-            compression_format="compressionFormat",
-            encryption_configuration=kinesisfirehose.CfnDeliveryStream.EncryptionConfigurationProperty(
-                kms_encryption_config=kinesisfirehose.CfnDeliveryStream.KMSEncryptionConfigProperty(
-                    awskms_key_arn="awskmsKeyArn"
-                ),
-                no_encryption_config="noEncryptionConfig"
-            ),
-            error_output_prefix="errorOutputPrefix",
-            prefix="prefix"
-        ),
-
-        # the properties below are optional
-        buffering_hints=kinesisfirehose.CfnDeliveryStream.AmazonopensearchserviceBufferingHintsProperty(
-            interval_in_seconds=123,
-            size_in_mBs=123
-        ),
-        cloud_watch_logging_options=kinesisfirehose.CfnDeliveryStream.CloudWatchLoggingOptionsProperty(
-            enabled=False,
-            log_group_name="logGroupName",
-            log_stream_name="logStreamName"
-        ),
-        cluster_endpoint="clusterEndpoint",
-        domain_arn="domainArn",
-        index_rotation_period="indexRotationPeriod",
-        processing_configuration=kinesisfirehose.CfnDeliveryStream.ProcessingConfigurationProperty(
-            enabled=False,
-            processors=[kinesisfirehose.CfnDeliveryStream.ProcessorProperty(
-                type="type",
-
-                # the properties below are optional
-                parameters=[kinesisfirehose.CfnDeliveryStream.ProcessorParameterProperty(
-                    parameter_name="parameterName",
-                    parameter_value="parameterValue"
-                )]
-            )]
-        ),
-        retry_options=kinesisfirehose.CfnDeliveryStream.AmazonopensearchserviceRetryOptionsProperty(
-            duration_in_seconds=123
-        ),
-        s3_backup_mode="s3BackupMode",
-        type_name="typeName",
-        vpc_configuration=kinesisfirehose.CfnDeliveryStream.VpcConfigurationProperty(
-            role_arn="roleArn",
-            security_group_ids=["securityGroupIds"],
-            subnet_ids=["subnetIds"]
-        )
-    ),
-    delivery_stream_name="deliveryStreamName",
-    delivery_stream_type="deliveryStreamType",
-    kinesis_stream_source_configuration=kinesisfirehose.CfnDeliveryStream.KinesisStreamSourceConfigurationProperty(
-        kinesis_stream_arn="kinesisStreamArn",
-        role_arn="roleArn"
-    ),
-    s3_destination_configuration=kinesisfirehose.CfnDeliveryStream.S3DestinationConfigurationProperty(
-        bucket_arn="bucketArn",
-        role_arn="roleArn",
-
-        # the properties below are optional
-        buffering_hints=kinesisfirehose.CfnDeliveryStream.BufferingHintsProperty(
-            interval_in_seconds=123,
-            size_in_mBs=123
-        ),
-        cloud_watch_logging_options=kinesisfirehose.CfnDeliveryStream.CloudWatchLoggingOptionsProperty(
-            enabled=False,
-            log_group_name="logGroupName",
-            log_stream_name="logStreamName"
-        ),
-        compression_format="compressionFormat",
-        encryption_configuration=kinesisfirehose.CfnDeliveryStream.EncryptionConfigurationProperty(
-            kms_encryption_config=kinesisfirehose.CfnDeliveryStream.KMSEncryptionConfigProperty(
-                awskms_key_arn="awskmsKeyArn"
-            ),
-            no_encryption_config="noEncryptionConfig"
-        ),
-        error_output_prefix="errorOutputPrefix",
-        prefix="prefix"
-    ),
-    tags=[CfnTag(
-        key="key",
-        value="value"
-    )]
-)
