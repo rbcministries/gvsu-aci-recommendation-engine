@@ -1,3 +1,6 @@
+import aws_cdk.aws_cloudwatch
+import aws_cdk.aws_iam as iam
+import json
 from constructs import Construct
 from aws_cdk import (
     Duration,
@@ -8,6 +11,13 @@ from aws_cdk import (
     aws_sns_subscriptions as sns_subscriptions,
     aws_apigateway as api_gw
 )
+
+import boto3
+from datetime import datetime
+AWS_REGION = 'us-east-1'
+cloudwatch = boto3.client('cloudwatch', region_name=AWS_REGION)
+iam = boto3.client('iam')
+
 
 class CloudWatchStack(NestedStack):
 
@@ -70,4 +80,68 @@ class CloudWatchStack(NestedStack):
 
         api_count_alarm.add_alarm_action(cw_actions.SnsAction(topic))
 
+        # creating policy with necessary trust perms for firehose -- will be used to set up metric stream
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Action": [
+                        "firehose:PutRecord",
+                        "firehose:PutRecordBatch"
+                    ],
+                    "Effect": "Allow",
+                    "Resource": "arn:aws:firehose:region:account-id:deliverystream/*"
+                },
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Service": "streams.metrics.cloudwatch.amazonaws.com"
+                    },
+                    "Action": "sts:AssumeRole"
+                }
+            ]
+        }
+        iam.create_policy(
+            PolicyName='cloudwatch-metric-policy',
+            PolicyDocument=json.dumps(policy)
+        )
+
+        # need to crete iam role & get arn, get firehose arn
+        cfn_metric_stream = cloudwatch.CfnMetricStream(self, "DataLakeMetricStream",
+                                                       firehose_arn="firehoseArn",
+                                                       output_format="json",
+                                                       role_arn="roleArn"
+                                                       )
+
         # Eventually need to do other services such as SageMaker
+
+        """need to finish looking into this -- might be the wrong approach"""
+        # sm_metric = client.get_metric_data(
+        #     MetricDataQueries=[
+        #         {
+        #             'Id': 'sm1',
+        #             'MetricStat': {
+        #                 'Metric': {
+        #                     'Namespace': 'AWS/SageMaker',
+        #                     'MetricName': 'Invocations',
+        #                     'Dimensions': [
+        #                         {
+        #                             'Name': 'EndpointName',
+        #                             'Value': 'users-hcl-2'
+        #                         },
+        #                         {
+        #                             'Name': 'VariantName',
+        #                             'Value': 'AllTraffic'
+        #                         }
+        #                     ],
+        #                     'Period': 300,
+        #                     'Stat': 'Sum',
+        #                     'Unit': 'None'
+        #                 }
+        #             }
+        #         },
+        #     ],
+        #     StartTime=datetime(2022, 3, 20),
+        #     EndTime=datetime(2022, 4, 9)
+        # )
+        #
