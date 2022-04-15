@@ -9,8 +9,8 @@ import re
 import os
 
 output_file = os.path.join(os.path.dirname(__file__), 'odb_pages_text.csv')
-sites = ["https://odbu.org/", "https://whereyafrom.org/", "https://discoveryseries.org/"]
-# sites = ["https://odb.org/", "https://odbu.org/", "https://whereyafrom.org/", "https://discoveryseries.org/"]
+# sites = ["https://odbu.org/", "https://whereyafrom.org/", "https://discoveryseries.org/"]
+sites = ["https://odb.org/", "https://odbu.org/", "https://whereyafrom.org/", "https://discoveryseries.org/"]
 headers = ['url', 'text']
 book_count_threshold = 1
 books = ['Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth,' 
@@ -132,9 +132,9 @@ options = webdriver.ChromeOptions()
 options.add_argument('--headless')
 driver = webdriver.Chrome(options=options, executable_path=ChromeDriverManager().install())
 
-# with open(output_file, 'w+', newline='') as csvfile:
-#     spamwriter = csv.writer(csvfile)
-#     spamwriter.writerow(headers)
+with open(output_file, 'w+', newline='') as csvfile:
+    spamwriter = csv.writer(csvfile)
+    spamwriter.writerow(headers)
 
 for url in sites:
     crawl(url, driver, 3000)
