@@ -18,7 +18,7 @@ class DatalakeStack(NestedStack):
         data_lake_bucket = s3.Bucket(self, "dataLakeBucket", bucket_name="recommendation_engine_data_lake")
 
         # s3 bucket for lambda function to transform GA json to parquet
-        lambda_transform_bucket = s3.Bucket(self, "transformBucket", bucket_name="lambda_transform_bucket")
+        ga_appflow_bucket = s3.Bucket(self, "transformBucket", bucket_name="ga_appflow_bucket")
 
         layer = lambda_.LayerVersion(stack, "pandas-parquet",
             code=lambda_.Code.from_asset(path.join(__dirname, "layer-code")),
@@ -35,7 +35,7 @@ class DatalakeStack(NestedStack):
         )
 
         # Add event listener for s3 bucket
-        lambda_transform_function.add_event_source(eventsources.S3EventSource(lambda_transform_bucket,
+        lambda_transform_function.add_event_source(eventsources.S3EventSource(ga_appflow_bucket,
             events=[s3.EventType.OBJECT_CREATED, s3.EventType.OBJECT_REMOVED],
             filters=[s3.NotificationKeyFilter(prefix="subdir/")]
         ))
@@ -44,15 +44,25 @@ class DatalakeStack(NestedStack):
         lambda_transform_function.attach_inline_policy(iam.Policy(self, "ga-transform-policy",
             statements=[iam.PolicyStatement(
                 actions=["s3:GetObject", "s3:PutObject"],
-                resources=[lambda_transform_bucket.bucket_arn]
+                resources=[ga_appflow_bucket.bucket_arn]
             )]
         ))
 
         # Declare appflow
         cfn_flow = appflow.CfnFlow(self, "ga-flow",
-        source_flow_config_property = appflow.CfnFlow.SourceFlowConfigProperty(
-            connector_type="Googleanalytics")
-        )
+            destination_flow_config_list=[appflow.CfnFlow.DestinationFlowConfigProperty(
+                connector_type="connectorType",
+                s3=appflow.CfnFlow.S3DestinationPropertiesProperty(
+                bucket_name="bucketName",
+            ),
+            source_flow_config_property = appflow.CfnFlow.SourceFlowConfigProperty(
+                connector_type="Googleanalytics")
+        ))
+
+        cfn_connector_profile = appflow.CfnConnectorProfile(self, "MyCfnConnectorProfile",
+            connection_mode="connectionMode",
+            connector_profile_name="connectorProfileName",
+            connector_type="connectorType",
 
         # Lake formation role
         bucket_role = iam.Role(
