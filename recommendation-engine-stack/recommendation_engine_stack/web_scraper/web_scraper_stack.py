@@ -5,6 +5,7 @@ from aws_cdk import (
     aws_s3 as s3,
     aws_s3_assets as s3_assests,
     aws_lambda as lambda_,
+    aws_rds as rds,
 )
 
 class WebScraperStack(NestedStack):
@@ -13,6 +14,20 @@ class WebScraperStack(NestedStack):
 
         # Create VPC for EC2 image
         self.vpc = ec2.Vpc(self, 'Scraper_VPC')
+
+        # Create DB for results storage
+        scraped_content_db = rds.CfnDBInstance(
+            self, 'ScrapedContentDB',
+            vpc=self.vpc,
+            engine='mysql',
+            instance_type=ec2.InstanceType.of(
+                ec2.InstanceClass.BURSTABLE3,
+                ec2.InstanceSize.MICRO
+            ),
+            # credentials=TODO
+        )
+
+        self.scraped_content_db_endpoint = scraped_content_db.instance_endpoint
 
         # Get Machine Image
         awsLinux = ec2.MachineImage.latest_amazon_linux(
@@ -24,11 +39,15 @@ class WebScraperStack(NestedStack):
             )
 
         # Upload scraping script to S3
-        scraping_script = s3_assests.Asset(self, 'Web_Scraping_Script',
+        scraping_script = s3_assests.Asset(self, 'WebScrapingScript',
             path='scraper.py')
 
+        # Maybe need to install python3?
         init_data = ec2.CloudFormationInit.from_elements(
-            ec2.InitFile.from_existing_asset('scraper.py', scraping_script)
+            ec2.InitFile.from_existing_asset(scraping_script.asset_path, scraping_script),
+            ec2.InitPackage('python3-bs4'),
+            ec2.InitPackage('selenium'),
+            ec2.InitPackage('webdriver-manager'),
         )
 
         self.ec2_instance = ec2.Instance(self, 'WebScraping',
@@ -42,7 +61,11 @@ class WebScraperStack(NestedStack):
 
         # For now we will just load the script onto the server]
         # Work out how to start/stop later
-        # lambda_fn = lambda_.Function(self, 'start_scraper_lambda',
-        #     handler='lambda_handler.handler',
-        #     code=lambda_.Code.from_asset('lambda'))
+        lambda_fn = lambda_.Function(self, 'start_scraper_lambda',
+            handler='start_scraper.handler',
+            code=lambda_.Code.from_asset('lambda'),
+            environment={
+                'INSTANCE_IP': self.ec2_instance.instance_id,
+
+            })
 

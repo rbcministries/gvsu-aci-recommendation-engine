@@ -2,11 +2,11 @@ from constructs import Construct
 from aws_cdk import (
     aws_apigateway as apigw,
     aws_lambda as _lambda,
-    NestedStack
+    NestedStack,
+    Stack
 )
 
-# https://github.com/aws-samples/aws-cdk-examples/blob/master/python/api-cors-lambda/app.py
-class ApiStack(NestedStack):
+class ApiStack(Stack):
 
     def __init__(self, scope: Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
@@ -19,9 +19,10 @@ class ApiStack(NestedStack):
 
         # Sample code for initial setup of API - waiting for recommendation engine to be setup
         # to connect to that. Will probably be through a Lambda function would be my guess.
-        example_lambda = _lambda.Function(self, "ApiSampleLambda",
-                                         handler='lambda_handler.handler',
-                                         code=_lambda.Code.from_asset('lambda'))
+        example_lambda = _lambda.Function(self, "lambda_function",
+                                         runtime=_lambda.Runtime.PYTHON_3_7,
+                                         handler='lambda-handler.main',
+                                         code=_lambda.Code.from_asset('./api/lambda'))
 
         example_entity_lambda_integration = apigw.LambdaIntegration(
             example_lambda,

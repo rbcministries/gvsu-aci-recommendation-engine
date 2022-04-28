@@ -23,7 +23,7 @@ def clean_text(text):
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--train', type=str, default='train.csv')
+parser.add_argument('--train', type=str, default='data/train.csv')
 parser.add_argument('--output', type=str, default=None)
 
 args = parser.parse_args()

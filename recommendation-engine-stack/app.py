@@ -4,7 +4,7 @@ import os
 import aws_cdk as cdk
 
 from recommendation_engine_stack.recommendation_engine_stack_stack import RecommendationEngineStackStack
-
+from recommendation_engine_stack.api.api_stack import ApiStack
 
 app = cdk.App()
 RecommendationEngineStackStack(app, "RecommendationEngineStackStack",
@@ -24,5 +24,6 @@ RecommendationEngineStackStack(app, "RecommendationEngineStackStack",
 
     # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
     )
+# ApiStack(app, "ApiStack")
 
 app.synth()

@@ -137,7 +137,7 @@ with open(output_file, 'w+', newline='') as csvfile:
     spamwriter.writerow(headers)
 
 for url in sites:
-    crawl(url, driver, 3000)
+    crawl(url, driver, 30000)
 
 print("[+] Total Internal links:", len(internal_urls))
 # print("[+] Total External links:", len(external_urls))
