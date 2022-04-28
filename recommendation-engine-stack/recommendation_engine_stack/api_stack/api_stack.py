@@ -15,7 +15,7 @@ class ApiStack(NestedStack):
         base_api = apigw.RestApi(self, 'ApiGW', rest_api_name='RecommendationAPI')
 
         #Create a resource named "example" on the base API
-        api_resource = base_api.root.add_resource('example')
+        self.api_resource = base_api.root.add_resource('example')
 
         # Sample code for initial setup of API - waiting for recommendation engine to be setup
         # to connect to that. Will probably be through a Lambda function would be my guess.
@@ -34,7 +34,7 @@ class ApiStack(NestedStack):
             }]
         )
 
-        api_resource.add_method(
+        self.api_resource.add_method(
             'GET', example_entity_lambda_integration,
             method_responses=[{
                 'statusCode': '200',
