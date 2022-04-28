@@ -11,7 +11,7 @@ from aws_cdk import (
     aws_sns_subscriptions as sns_subscriptions,
     aws_apigateway as api_gw
 )
-
+from aws_cdk.aws_cloudwatch import Metric, GraphWidget
 import boto3
 from datetime import datetime
 AWS_REGION = 'us-east-1'
@@ -107,41 +107,51 @@ class CloudWatchStack(NestedStack):
         )
 
         # need to crete iam role & get arn, get firehose arn
-        cfn_metric_stream = cloudwatch.CfnMetricStream(self, "DataLakeMetricStream",
-                                                       firehose_arn="firehoseArn",
-                                                       output_format="json",
-                                                       role_arn="roleArn"
-                                                       )
+        # cfn_metric_stream = cloudwatch.CfnMetricStream(self, "DataLakeMetricStream",
+        #                                                firehose_arn="firehoseArn",
+        #                                                output_format="json",
+        #                                                role_arn="roleArn"
+        #                                                )
 
-        # Eventually need to do other services such as SageMaker
+        dashboard = cloudwatch.Dashboard(self, 'GVSU_ODB_MonitoringDashboard', dashboardName='GVSU_ODB_MonitoringDashboard')
+        env = self.node.try_get_context('env')
 
-        """need to finish looking into this -- might be the wrong approach"""
-        # sm_metric = client.get_metric_data(
-        #     MetricDataQueries=[
-        #         {
-        #             'Id': 'sm1',
-        #             'MetricStat': {
-        #                 'Metric': {
-        #                     'Namespace': 'AWS/SageMaker',
-        #                     'MetricName': 'Invocations',
-        #                     'Dimensions': [
-        #                         {
-        #                             'Name': 'EndpointName',
-        #                             'Value': 'users-hcl-2'
-        #                         },
-        #                         {
-        #                             'Name': 'VariantName',
-        #                             'Value': 'AllTraffic'
-        #                         }
-        #                     ],
-        #                     'Period': 300,
-        #                     'Stat': 'Sum',
-        #                     'Unit': 'None'
-        #                 }
-        #             }
-        #         },
-        #     ],
-        #     StartTime=datetime(2022, 3, 20),
-        #     EndTime=datetime(2022, 4, 9)
-        # )
-        #
+        dashboard.add(
+            self.buildODBWidget(env, 'AverageQueryTime'),
+            self.buildODBWidget(env, 'AvgSkewRatio'),
+            self.buildODBWidget(env, 'MaxSkewRatio'),
+            self.buildODBWidget(env, 'ColumnsNotCompressed')
+        )
+        dashboard.add(
+            self.buildODBWidget(env, 'AvgCommitQueueTime'),
+            self.buildODBWidget(env, 'AvgSkewSortRatio'),
+            self.buildODBWidget(env, 'MaxSkewSortRatio'),
+            self.buildODBWidget(env, 'DiskBasedQueries'),
+        )
+        dashboard.add(
+            self.buildODBWidget(env, 'MaxUnsorted'),
+            self.buildODBWidget(env, 'MaxVarcharSize'),
+            self.buildODBWidget(env, 'TotalAlerts'),
+            self.buildODBWidget(env, 'QueriesScanNoSort'),
+        )
+        dashboard.add(
+            self.buildODBWidget(env, 'Tables'),
+            self.buildODBWidget(env, 'TablesNotCompressed'),
+            self.buildODBWidget(env, 'TablesStatsOff'),
+            self.buildODBWidget(env, 'Rows'),
+        )
+        dashboard.add(
+            self.buildODBWidget(env, 'QueriesWithHighTraffic'),
+            self.buildODBWidget(env, 'Packets'),
+            self.buildODBWidget(env, 'TotalWLMQueueTime'),
+        )
+
+    def buildODBWidget(env, metricName, statistic):
+        return GraphWidget(
+            title=metricName,
+            left=[Metric(
+                namespace='ODB',
+                metric_name=metricName),
+            ], statistic='avg'
+        )
+
