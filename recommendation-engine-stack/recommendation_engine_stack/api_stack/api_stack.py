@@ -33,12 +33,12 @@ class ApiStack(NestedStack):
         # I think mostly for 
         # api_resource = lambda_api.root.add_resource('recommendation')
 
-        # api_resource.add_method(
-        #     'GET', example_entity_lambda_integration,
-        #     method_responses=[{
-        #         'statusCode': '200',
-        #         'responseParameters': {
-        #             'method.response.header.Access-Control-Allow-Origin': True,
-        #         }
-        #     }]
-        # )
+        self.api_resource.add_method(
+            'GET', example_entity_lambda_integration,
+            method_responses=[{
+                'statusCode': '200',
+                'responseParameters': {
+                    'method.response.header.Access-Control-Allow-Origin': True,
+                }
+            }]
+        )

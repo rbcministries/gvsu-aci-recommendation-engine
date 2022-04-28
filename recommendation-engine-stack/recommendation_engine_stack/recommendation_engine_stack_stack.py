@@ -4,6 +4,7 @@ from aws_cdk import (
 from constructs import Construct
 from datalake_stack.datalake_stack import DatalakeStack
 from api_stack.api_stack import ApiStack
+from cloud_watch.cloud_watch import CloudWatchStack
 
 class RecommendationEngineStackStack(Stack):
 
@@ -11,4 +12,5 @@ class RecommendationEngineStackStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
 
         DatalakeStack(self, "DataLakeStack")
-        ApiStack(self, "ApiStack")
+        api_stack = ApiStack(self, "ApiStack")
+        CloudWatchStack(self, "CloudWatch", api_stack.api_resource)
